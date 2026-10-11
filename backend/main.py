@@ -19,7 +19,11 @@ Run:
 
 import io
 import os
+import sys
 import json
+
+# Allow running from repo root (e.g. Render: uvicorn backend.main:app)
+sys.path.insert(0, os.path.dirname(__file__))
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile, File, Query
