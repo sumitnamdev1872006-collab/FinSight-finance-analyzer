@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinSight — Personal Finance Analyzer</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <span>💰</span>
+      <span class="logo-text">FinSight</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-link active" data-page="dashboard">📊 Dashboard</a>
+      <a href="#" class="nav-link" data-page="transactions">📋 Transactions</a>
+      <a href="#" class="nav-link" data-page="upload">📤 Upload Data</a>
+      <a href="#" class="nav-link" data-page="analysis">📈 Analysis</a>
+      <a href="#" class="nav-link" data-page="insights">💡 Insights</a>
+    </nav>
+    <div class="sidebar-footer">B.Tech Project · 2025</div>
+  </aside>
+
+  <!-- ── Main ────────────────────────────────────────────────────────────── -->
+  <main class="main">
+    <header class="topbar">
+      <h1 id="page-title">Dashboard</h1>
+      <span class="topbar-tag">Personal Finance Analyzer</span>
+    </header>
+
+    <!-- Dashboard -->
+    <section id="page-dashboard" class="page active">
+      <div class="welcome">
+        <div>
+          <h2>Welcome to FinSight 👋</h2>
+          <p>Upload your CSV or add transactions manually to start analyzing your finances.</p>
+        </div>
+        <a href="#" class="btn btn-white" data-page="upload">Upload CSV</a>
+      </div>
+
+      <div class="cards">
+        <div class="card blue"><div class="card-lbl">Total Income</div><div class="card-val" id="s-income">₹0.00</div></div>
+        <div class="card red"><div class="card-lbl">Total Expenses</div><div class="card-val" id="s-expenses">₹0.00</div></div>
+        <div class="card green"><div class="card-lbl">Savings</div><div class="card-val" id="s-savings">₹0.00</div></div>
+        <div class="card purple"><div class="card-lbl">Savings Rate</div><div class="card-val" id="s-pct">0%</div></div>
+      </div>
+
+      <div class="chart-row">
+        <div class="chart-box"><h3>Income vs Expenses</h3><canvas id="ch-bar"></canvas></div>
+        <div class="chart-box"><h3>Expenses by Category</h3><canvas id="ch-pie"></canvas></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-box"><h3>Monthly Expense Trend</h3><canvas id="ch-line"></canvas></div>
+        <div class="chart-box"><h3>Monthly Savings Trend</h3><canvas id="ch-savings"></canvas></div>
+      </div>
+
+      <div class="box">
+        <h3>Recent Transactions</h3>
+        <div id="recent-wrap"><p class="empty">No transactions yet.</p></div>
+      </div>
+    </section>
+
+    <!-- Transactions -->
+    <section id="page-transactions" class="page">
+      <div class="box">
+        <h3>Add Transaction</h3>
+        <form id="txn-form" class="form-grid">
+          <div class="fg"><label>Date *</label><input type="date" id="f-date" required /></div>
+          <div class="fg"><label>Description *</label><input type="text" id="f-desc" placeholder="e.g. Zomato order" required /></div>
+          <div class="fg"><label>Amount (₹) *</label><input type="number" id="f-amt" min="0.01" step="0.01" placeholder="500" required /></div>
+          <div class="fg">
+            <label>Type *</label>
+            <select id="f-type" required>
+              <option value="">-- Select --</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label>Category *</label>
+            <select id="f-cat" required>
+              <option value="">-- Select --</option>
+              <option>Food</option><option>Transport</option><option>Shopping</option>
+              <option>Entertainment</option><option>Healthcare</option><option>Education</option>
+              <option>Bills</option><option>Rent</option><option>Travel</option>
+              <option>Salary</option><option>Other</option>
+            </select>
+          </div>
+          <div class="fg fg-btn"><button type="submit" class="btn btn-primary">Add</button></div>
+        </form>
+        <div id="txn-msg" class="msg"></div>
+      </div>
+
+      <div class="box">
+        <div class="row-between">
+          <h3>All Transactions</h3>
+          <div class="filters">
+            <input type="text" id="f-search" placeholder="🔍 Search…" />
+            <select id="f-filter-type">
+              <option value="">All Types</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+            <select id="f-filter-cat">
+              <option value="">All Categories</option>
+              <option>Food</option><option>Transport</option><option>Shopping</option>
+              <option>Entertainment</option><option>Healthcare</option><option>Education</option>
+              <option>Bills</option><option>Rent</option><option>Travel</option>
+              <option>Salary</option><option>Other</option>
+            </select>
+          </div>
+        </div>
+        <div id="txn-table-wrap"><p class="empty">No transactions found.</p></div>
+      </div>
+    </section>
+
+    <!-- Upload -->
+    <section id="page-upload" class="page">
+      <div class="box">
+        <h3>Upload CSV File</h3>
+        <p class="help">Required columns: <code>date, description, amount, type, category</code></p>
+        <div class="upload-zone" id="drop-zone">
+          <div style="font-size:40px">📂</div>
+          <p>Drag &amp; drop a CSV here, or click to browse</p>
+          <input type="file" id="csv-input" accept=".csv" style="display:none" />
+          <button class="btn btn-secondary" onclick="document.getElementById('csv-input').click()">Browse File</button>
+        </div>
+        <div id="upload-result" style="display:none" class="upload-result"></div>
+        <div class="hint-box">
+          <strong>Example CSV format:</strong>
+          <pre>date,description,amount,type,category
+2026-10-01,Salary,30000,income,Salary
+2026-10-02,Zomato,500,expense,Food
+2026-10-03,Uber,300,expense,Transport</pre>
+          <p><a href="/data/sample_transactions.csv" download>⬇ Download sample CSV</a></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Analysis -->
+    <section id="page-analysis" class="page">
+      <div class="box">
+        <div class="row-between">
+          <h3>Analysis</h3>
+          <div class="filters">
+            <input type="month" id="a-month" title="Filter by month" />
+            <select id="a-type">
+              <option value="">All Types</option>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+            <button class="btn btn-secondary" onclick="loadAnalysis()">Apply</button>
+          </div>
+        </div>
+        <div id="analysis-wrap"><p class="empty">Add or upload transactions to see analysis.</p></div>
+      </div>
+    </section>
+
+    <!-- Insights -->
+    <section id="page-insights" class="page">
+      <div class="box">
+        <h3>💡 Auto-Generated Insights</h3>
+        <p class="help">Computed directly from your data — no AI required.</p>
+        <div id="insights-wrap"><p class="empty">No data yet.</p></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="/static/script.js"></script>
+</body>
+</html>

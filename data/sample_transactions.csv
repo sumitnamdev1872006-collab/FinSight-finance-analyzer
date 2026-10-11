@@ -1,0 +1,66 @@
+date,description,amount,type,category
+2026-01-01,Salary,30000,income,Salary
+2026-01-02,Zomato order,450,expense,Food
+2026-01-03,Uber cab,320,expense,Transport
+2026-01-04,Amazon purchase,2200,expense,Shopping
+2026-01-05,Electricity bill,1500,expense,Bills
+2026-01-06,Grocery store,900,expense,Food
+2026-01-07,Netflix subscription,649,expense,Entertainment
+2026-01-08,Petrol,800,expense,Transport
+2026-01-09,Swiggy food,380,expense,Food
+2026-01-10,Flipkart order,1800,expense,Shopping
+2026-01-11,Doctor visit,500,expense,Healthcare
+2026-01-12,College fees,5000,expense,Education
+2026-01-13,Rent payment,8000,expense,Rent
+2026-01-14,Dominos pizza,600,expense,Food
+2026-01-15,Bus pass,200,expense,Transport
+2026-01-16,Freelance income,8000,income,Salary
+2026-01-17,Recharge mobile,299,expense,Bills
+2026-01-18,Movie tickets,400,expense,Entertainment
+2026-01-19,Medicine,350,expense,Healthcare
+2026-01-20,Uber ride,180,expense,Transport
+2026-02-01,Salary,30000,income,Salary
+2026-02-02,Restaurant dinner,1200,expense,Food
+2026-02-03,Ola cab,250,expense,Transport
+2026-02-04,Myntra clothes,3500,expense,Shopping
+2026-02-05,Internet bill,799,expense,Bills
+2026-02-06,Grocery,1100,expense,Food
+2026-02-07,Spotify,119,expense,Entertainment
+2026-02-08,Hotel booking,4500,expense,Travel
+2026-02-09,Pharmacy,420,expense,Healthcare
+2026-02-10,Book purchase,650,expense,Education
+2026-02-11,Rent,8000,expense,Rent
+2026-02-12,Zomato,520,expense,Food
+2026-02-13,Petrol fill,900,expense,Transport
+2026-02-14,Amazon shopping,2800,expense,Shopping
+2026-02-15,Electricity,1600,expense,Bills
+2026-02-16,Coffee shop,280,expense,Food
+2026-02-17,Freelance project,5000,income,Salary
+2026-02-18,Uber,350,expense,Transport
+2026-02-19,Cinema,500,expense,Entertainment
+2026-02-20,Udemy course,1299,expense,Education
+2026-03-01,Salary,30000,income,Salary
+2026-03-02,Swiggy,460,expense,Food
+2026-03-03,Metro card,500,expense,Transport
+2026-03-04,Flipkart,1500,expense,Shopping
+2026-03-05,Water bill,300,expense,Bills
+2026-03-06,Big basket grocery,1400,expense,Food
+2026-03-07,Netflix,649,expense,Entertainment
+2026-03-08,Makemytrip hotel,6000,expense,Travel
+2026-03-09,Hospital bill,2500,expense,Healthcare
+2026-03-10,College fees,5000,expense,Education
+2026-03-11,Rent,8000,expense,Rent
+2026-03-12,Zomato,400,expense,Food
+2026-03-13,Petrol,850,expense,Transport
+2026-03-14,Amazon,3200,expense,Shopping
+2026-03-15,DTH recharge,350,expense,Bills
+2026-03-16,Cafe coffee,320,expense,Food
+2026-03-17,Bonus,10000,income,Salary
+2026-03-18,Ola cab,290,expense,Transport
+2026-03-19,Movie,450,expense,Entertainment
+2026-03-20,Books,800,expense,Education
+2026-03-21,Pharmacy,200,expense,Healthcare
+2026-03-22,Restaurant,1800,expense,Food
+2026-03-23,Airtel recharge,299,expense,Bills
+2026-03-24,Myntra,2200,expense,Shopping
+2026-03-25,Rapido,150,expense,Transport
