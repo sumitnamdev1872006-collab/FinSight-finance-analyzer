@@ -3,6 +3,16 @@
 const fmt = n => "₹" + Number(n).toLocaleString("en-IN", {minimumFractionDigits:2});
 const charts = {};
 
+// ── Session ID — unique per browser tab, cleared on tab close ─────────────────
+const SESSION_ID = (() => {
+  let id = sessionStorage.getItem("finsight_session");
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now();
+    sessionStorage.setItem("finsight_session", id);
+  }
+  return id;
+})();
+
 function renderChart(id, cfg) {
   if (charts[id]) charts[id].destroy();
   const c = document.getElementById(id);
@@ -30,7 +40,8 @@ document.querySelectorAll("[data-page]").forEach(el =>
 
 // ── API ───────────────────────────────────────────────────────────────────────
 async function api(path, opts = {}) {
-  const res = await fetch(path, { headers: {"Content-Type":"application/json"}, ...opts });
+  const headers = { "Content-Type": "application/json", "x-session-id": SESSION_ID, ...(opts.headers || {}) };
+  const res = await fetch(path, { ...opts, headers });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || res.statusText);
   return data;
@@ -154,7 +165,21 @@ function downloadExport(format) {
   const type     = document.getElementById("f-filter-type")?.value || "";
   const category = document.getElementById("f-filter-cat")?.value || "";
   const qs = new URLSearchParams({ search, type, category }).toString();
-  window.location.href = `/api/export/${format}?${qs}`;
+  // Use fetch+blob so session header is sent (window.location.href can't send headers)
+  fetch(`/api/export/${format}?${qs}`, { headers: { "x-session-id": SESSION_ID } })
+    .then(res => {
+      if (!res.ok) { res.json().then(d => alert(d.detail || "No data to export.")); return; }
+      return res.blob();
+    })
+    .then(blob => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `finsight_transactions.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
 }
 
 // ── Upload ────────────────────────────────────────────────────────────────────
@@ -173,7 +198,7 @@ async function doUpload(file) {
   if (!file.name.endsWith(".csv")) { showUpload("Only CSV files are supported.", true); return; }
   const fd = new FormData(); fd.append("file", file);
   try {
-    const res = await fetch("/api/upload", { method:"POST", body:fd });
+    const res = await fetch("/api/upload", { method:"POST", body:fd, headers:{"x-session-id": SESSION_ID} });
     const d = await res.json();
     if (!res.ok) throw new Error(d.detail || "Upload failed");
     showUpload(`✅ <strong>Import complete!</strong><br>

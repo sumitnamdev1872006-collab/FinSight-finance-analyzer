@@ -27,7 +27,7 @@ import csv
 sys.path.insert(0, os.path.dirname(__file__))
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException, UploadFile, File, Query
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, StreamingResponse
@@ -79,13 +79,12 @@ if os.path.isdir(FRONTEND_DIR):
 
 # ── Helper: load all transactions as a DataFrame ──────────────────────────────
 
-def load_df() -> pd.DataFrame:
+def load_df(session_id: str = "default") -> pd.DataFrame:
     """Read all rows from SQLite into a Pandas DataFrame."""
-    conn = get_connection()
+    conn = get_connection(session_id)
     rows = conn.execute(
         "SELECT id, date, description, amount, type, category FROM transactions ORDER BY date DESC"
     ).fetchall()
-    conn.close()
     if not rows:
         return pd.DataFrame(columns=["id", "date", "description", "amount", "type", "category"])
     return pd.DataFrame([dict(r) for r in rows])
@@ -106,9 +105,10 @@ def get_transactions(
     search:   str = Query("", description="Filter by description keyword"),
     type:     str = Query("", description="Filter by 'income' or 'expense'"),
     category: str = Query("", description="Filter by category name"),
+    x_session_id: str = Header(default="default"),
 ):
     """Return all transactions, with optional filters."""
-    df = load_df()
+    df = load_df(x_session_id)
     if df.empty:
         return []
 
@@ -131,43 +131,36 @@ def get_transactions(
 
 
 @app.post("/api/transactions", status_code=201)
-def add_transaction(txn: Transaction):
+def add_transaction(txn: Transaction, x_session_id: str = Header(default="default")):
     """Add a single transaction entered manually by the user."""
-    # Auto-categorize if category is default/empty
     category = txn.category or "Other"
     if category == "Other":
         category = auto_categorize(txn.description)
 
-    conn = get_connection()
-    try:
-        conn.execute(
-            "INSERT INTO transactions (date, description, amount, type, category) VALUES (?, ?, ?, ?, ?)",
-            (txn.date, txn.description, txn.amount, txn.type, category),
-        )
-        conn.commit()
-    finally:
-        conn.close()
+    conn = get_connection(x_session_id)
+    conn.execute(
+        "INSERT INTO transactions (date, description, amount, type, category) VALUES (?, ?, ?, ?, ?)",
+        (txn.date, txn.description, txn.amount, txn.type, category),
+    )
+    conn.commit()
     return {"message": "Transaction added successfully"}
 
 
 @app.delete("/api/transactions/{txn_id}", status_code=200)
-def delete_transaction(txn_id: int):
+def delete_transaction(txn_id: int, x_session_id: str = Header(default="default")):
     """Delete a transaction by ID."""
-    conn = get_connection()
-    try:
-        cursor = conn.execute("DELETE FROM transactions WHERE id = ?", (txn_id,))
-        conn.commit()
-        if cursor.rowcount == 0:
-            raise HTTPException(status_code=404, detail="Transaction not found")
-    finally:
-        conn.close()
+    conn = get_connection(x_session_id)
+    cursor = conn.execute("DELETE FROM transactions WHERE id = ?", (txn_id,))
+    conn.commit()
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Transaction not found")
     return {"message": "Transaction deleted"}
 
 
 # ── CSV Upload ────────────────────────────────────────────────────────────────
 
 @app.post("/api/upload")
-async def upload_csv(file: UploadFile = File(...)):
+async def upload_csv(file: UploadFile = File(...), x_session_id: str = Header(default="default")):
     """
     Upload a CSV file, clean it with Pandas, and store valid rows in SQLite.
     Returns an import summary.
@@ -194,16 +187,13 @@ async def upload_csv(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(e))
 
     # Insert valid rows into SQLite
-    conn = get_connection()
-    try:
-        for _, row in clean_df.iterrows():
-            conn.execute(
-                "INSERT INTO transactions (date, description, amount, type, category) VALUES (?, ?, ?, ?, ?)",
-                (row["date"], row["description"], float(row["amount"]), row["type"], row["category"]),
-            )
-        conn.commit()
-    finally:
-        conn.close()
+    conn = get_connection(x_session_id)
+    for _, row in clean_df.iterrows():
+        conn.execute(
+            "INSERT INTO transactions (date, description, amount, type, category) VALUES (?, ?, ?, ?, ?)",
+            (row["date"], row["description"], float(row["amount"]), row["type"], row["category"]),
+        )
+    conn.commit()
 
     return summary
 
@@ -211,12 +201,12 @@ async def upload_csv(file: UploadFile = File(...)):
 # ── Dashboard ─────────────────────────────────────────────────────────────────
 
 @app.get("/api/dashboard")
-def dashboard():
+def dashboard(x_session_id: str = Header(default="default")):
     """
     Returns all data needed by the dashboard:
     summary cards, chart data, category totals, recent transactions.
     """
-    df = load_df()
+    df = load_df(x_session_id)
     summary = calculate_summary(df)
 
     # Monthly trend data for charts
@@ -256,9 +246,10 @@ def analysis(
     month:    str = Query("", description="Filter to a specific month, e.g. 2026-10"),
     type:     str = Query("", description="Filter by 'income' or 'expense'"),
     category: str = Query("", description="Filter by category"),
+    x_session_id: str = Header(default="default"),
 ):
     """Detailed statistics, category breakdown, and monthly summary."""
-    df = load_df()
+    df = load_df(x_session_id)
 
     if df.empty:
         raise HTTPException(status_code=404, detail="No transactions found.")
@@ -285,9 +276,9 @@ def analysis(
 # ── Insights ──────────────────────────────────────────────────────────────────
 
 @app.get("/api/insights")
-def insights():
+def insights(x_session_id: str = Header(default="default")):
     """Return a list of auto-generated financial insight strings."""
-    df = load_df()
+    df = load_df(x_session_id)
     return {"insights": generate_insights(df)}
 
 
@@ -298,9 +289,10 @@ def export_csv(
     search:   str = Query("", description="Filter by description keyword"),
     type:     str = Query("", description="Filter by 'income' or 'expense'"),
     category: str = Query("", description="Filter by category name"),
+    x_session_id: str = Header(default="default"),
 ):
     """Download all (filtered) transactions as a CSV file."""
-    df = load_df()
+    df = load_df(x_session_id)
     if df.empty:
         raise HTTPException(status_code=404, detail="No transactions to export.")
 
@@ -332,6 +324,7 @@ def export_pdf(
     search:   str = Query("", description="Filter by description keyword"),
     type:     str = Query("", description="Filter by 'income' or 'expense'"),
     category: str = Query("", description="Filter by category name"),
+    x_session_id: str = Header(default="default"),
 ):
     """Download all (filtered) transactions as a PDF file."""
     try:
@@ -343,7 +336,7 @@ def export_pdf(
     except ImportError:
         raise HTTPException(status_code=500, detail="reportlab is not installed.")
 
-    df = load_df()
+    df = load_df(x_session_id)
     if df.empty:
         raise HTTPException(status_code=404, detail="No transactions to export.")
 
@@ -411,14 +404,14 @@ def export_pdf(
 # ── AI Summary ────────────────────────────────────────────────────────────────
 
 @app.post("/api/ai-summary")
-def ai_summary():
+def ai_summary(x_session_id: str = Header(default="default")):
     """
     Build a short text summary of the analysis and send it to an LLM.
     Returns the AI response, or a message if the AI is unavailable.
 
     NOTE: Provides educational observations only — not financial advice.
     """
-    df = load_df()
+    df = load_df(x_session_id)
     if df.empty:
         raise HTTPException(status_code=400, detail="No transactions found to summarise.")
 
