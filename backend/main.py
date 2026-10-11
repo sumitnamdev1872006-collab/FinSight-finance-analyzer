@@ -21,6 +21,7 @@ import io
 import os
 import sys
 import json
+import csv
 
 # Allow running from repo root (e.g. Render: uvicorn backend.main:app)
 sys.path.insert(0, os.path.dirname(__file__))
@@ -29,7 +30,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from database import init_db, get_connection
 from models import Transaction
@@ -288,6 +289,123 @@ def insights():
     """Return a list of auto-generated financial insight strings."""
     df = load_df()
     return {"insights": generate_insights(df)}
+
+
+# ── Export ────────────────────────────────────────────────────────────────────
+
+@app.get("/api/export/csv")
+def export_csv(
+    search:   str = Query("", description="Filter by description keyword"),
+    type:     str = Query("", description="Filter by 'income' or 'expense'"),
+    category: str = Query("", description="Filter by category name"),
+):
+    """Download all (filtered) transactions as a CSV file."""
+    df = load_df()
+    if df.empty:
+        raise HTTPException(status_code=404, detail="No transactions to export.")
+
+    if search:
+        df = df[df["description"].str.contains(search, case=False, na=False)]
+    if type and type in ("income", "expense"):
+        df = df[df["type"] == type]
+    if category:
+        df = df[df["category"] == category]
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=["id", "date", "description", "amount", "type", "category"])
+    writer.writeheader()
+    for _, row in df.iterrows():
+        writer.writerow({
+            "id": row["id"], "date": row["date"], "description": row["description"],
+            "amount": row["amount"], "type": row["type"], "category": row["category"],
+        })
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=finsight_transactions.csv"},
+    )
+
+
+@app.get("/api/export/pdf")
+def export_pdf(
+    search:   str = Query("", description="Filter by description keyword"),
+    type:     str = Query("", description="Filter by 'income' or 'expense'"),
+    category: str = Query("", description="Filter by category name"),
+):
+    """Download all (filtered) transactions as a PDF file."""
+    try:
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib import colors
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import cm
+    except ImportError:
+        raise HTTPException(status_code=500, detail="reportlab is not installed.")
+
+    df = load_df()
+    if df.empty:
+        raise HTTPException(status_code=404, detail="No transactions to export.")
+
+    if search:
+        df = df[df["description"].str.contains(search, case=False, na=False)]
+    if type and type in ("income", "expense"):
+        df = df[df["type"] == type]
+    if category:
+        df = df[df["category"] == category]
+
+    total_income   = df[df["type"] == "income"]["amount"].sum()
+    total_expenses = df[df["type"] == "expense"]["amount"].sum()
+    savings        = total_income - total_expenses
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), leftMargin=1*cm, rightMargin=1*cm, topMargin=1.5*cm, bottomMargin=1.5*cm)
+    styles = getSampleStyleSheet()
+    elements = []
+
+    elements.append(Paragraph("FinSight — Transaction Report", styles["Title"]))
+    elements.append(Spacer(1, 0.3*cm))
+    elements.append(Paragraph(
+        f"Total Income: ₹{total_income:,.2f}   |   Total Expenses: ₹{total_expenses:,.2f}   |   Savings: ₹{savings:,.2f}   |   Transactions: {len(df)}",
+        styles["Normal"]
+    ))
+    elements.append(Spacer(1, 0.5*cm))
+
+    header = ["#", "Date", "Description", "Amount (₹)", "Type", "Category"]
+    data = [header]
+    for i, (_, row) in enumerate(df.iterrows(), 1):
+        data.append([
+            str(i), str(row["date"]),
+            str(row["description"])[:40],
+            f"{float(row['amount']):,.2f}",
+            str(row["type"]).capitalize(),
+            str(row["category"]),
+        ])
+
+    col_widths = [1*cm, 2.8*cm, 9*cm, 3*cm, 2.5*cm, 3*cm]
+    tbl = Table(data, colWidths=col_widths, repeatRows=1)
+    tbl.setStyle(TableStyle([
+        ("BACKGROUND",   (0, 0), (-1, 0),  colors.HexColor("#1e3a5f")),
+        ("TEXTCOLOR",    (0, 0), (-1, 0),  colors.white),
+        ("FONTNAME",     (0, 0), (-1, 0),  "Helvetica-Bold"),
+        ("FONTSIZE",     (0, 0), (-1, 0),  9),
+        ("FONTSIZE",     (0, 1), (-1, -1), 8),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f0f4f8")]),
+        ("GRID",         (0, 0), (-1, -1), 0.4, colors.HexColor("#d1d5db")),
+        ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING",   (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
+    ]))
+    elements.append(tbl)
+    doc.build(elements)
+    buffer.seek(0)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=finsight_transactions.pdf"},
+    )
 
 
 # ── AI Summary ────────────────────────────────────────────────────────────────

@@ -149,6 +149,14 @@ async function delTxn(id) {
   catch(e) { alert("Error: " + e.message); }
 }
 
+function downloadExport(format) {
+  const search   = document.getElementById("f-search")?.value || "";
+  const type     = document.getElementById("f-filter-type")?.value || "";
+  const category = document.getElementById("f-filter-cat")?.value || "";
+  const qs = new URLSearchParams({ search, type, category }).toString();
+  window.location.href = `/api/export/${format}?${qs}`;
+}
+
 // ── Upload ────────────────────────────────────────────────────────────────────
 const dropZone   = document.getElementById("drop-zone");
 const csvInput   = document.getElementById("csv-input");
